@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"time"
 
-	"gopkg.me/amz-sp-pkg/cache"
-	"gopkg.me/amz-sp-pkg/types"
+	"github.com/amzapi/amz-sp-pkg/cache"
+	"github.com/amzapi/amz-sp-pkg/types"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"

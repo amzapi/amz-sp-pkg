@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"gopkg.me/amz-sp-pkg/types"
+	"github.com/amzapi/amz-sp-pkg/types"
 
 	"github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"

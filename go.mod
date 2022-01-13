@@ -1,4 +1,4 @@
-module gopkg.me/amz-sp-pkg
+module github.com/amzapi/amz-sp-pkg
 
 go 1.17
 

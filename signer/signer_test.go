@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"gopkg.me/amz-sp-pkg/cache"
+	"github.com/amzapi/amz-sp-pkg/cache"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/assert"

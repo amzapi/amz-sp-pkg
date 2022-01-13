@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.me/amz-sp-pkg/types"
+	"github.com/amzapi/amz-sp-pkg/types"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/assert"

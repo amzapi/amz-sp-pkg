@@ -1,7 +1,7 @@
 package token
 
 import (
-	"gopkg.me/amz-sp-pkg/cache"
+	"github.com/amzapi/amz-sp-pkg/cache"
 )
 
 // Option is config option.

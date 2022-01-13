@@ -5,8 +5,8 @@ import (
 	"crypto/md5"
 	"fmt"
 
-	"gopkg.me/amz-sp-pkg/cache"
-	"gopkg.me/amz-sp-pkg/types"
+	"github.com/amzapi/amz-sp-pkg/cache"
+	"github.com/amzapi/amz-sp-pkg/types"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/pkg/errors"

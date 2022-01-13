@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"gopkg.me/amz-sp-pkg/types"
+	"github.com/amzapi/amz-sp-pkg/types"
 
 	"github.com/stretchr/testify/assert"
 )
