@@ -99,7 +99,7 @@ func (c *Client) GetRestrictedDataToken(ctx context.Context, sellerId string, en
 		}
 	}
 
-	result, err := c.GetRestrictedDataTokenSkipCache(ctx, endpoint, awsRegion, accessToken, operations)
+	result, err := c.GetRestrictedDataTokenSkipCache(ctx, endpoint, awsRegion, accessToken, body)
 	if err != nil {
 		return nil, err
 	}
