@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"golang.org/x/sync/singleflight"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -21,12 +22,13 @@ import (
 )
 
 type Signer struct {
-	cache           cache.Cache //
-	cacheKey        string      //
-	debug           bool        //
-	accessKeyID     string      //AWS IAM User Access Key ID
-	secretAccessKey string      //AWS IAM User Secret Key
-	roleArn         string      //AWS IAM Role ARN
+	cache           cache.Cache        //
+	cacheKey        string             //
+	debug           bool               //
+	accessKeyID     string             //AWS IAM User Access Key ID
+	secretAccessKey string             //AWS IAM User Secret Key
+	roleArn         string             //AWS IAM Role ARN
+	sf              singleflight.Group //
 }
 
 func NewSigner(opts ...Option) *Signer {
@@ -93,7 +95,16 @@ func (s *Signer) RefreshRoleCredentials(ctx context.Context) (*types.RoleCredent
 			return nil, errors.WithMessage(err, "[signer] get role credentials cache error")
 		}
 	}
-	return s.RefreshRoleCredentialsSkipCache(ctx)
+
+	v, err, _ := s.sf.Do(s.cacheKey, func() (interface{}, error) {
+		return s.RefreshRoleCredentialsSkipCache(ctx)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return v.(*types.RoleCredentials), nil
 }
 
 func (s *Signer) SignRequest(ctx context.Context, r *http.Request, accessToken, awsRegion string) error {

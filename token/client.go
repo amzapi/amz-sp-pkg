@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/md5"
 	"fmt"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/amzapi/amz-sp-pkg/cache"
 	"github.com/amzapi/amz-sp-pkg/types"
@@ -13,11 +14,12 @@ import (
 )
 
 type Client struct {
-	tokenUrl     string      //
-	clientId     string      // SP-API LWA Client ID
-	clientSecret string      // SP-API LWA Client Secret
-	debug        bool        //
-	cache        cache.Cache //
+	tokenUrl     string             //
+	clientId     string             // SP-API LWA Client ID
+	clientSecret string             // SP-API LWA Client Secret
+	debug        bool               //
+	cache        cache.Cache        //
+	sf           singleflight.Group //
 }
 
 func NewClient(opts ...Option) *Client {
@@ -87,7 +89,15 @@ func (c *Client) GetAccessToken(ctx context.Context, refreshToken string) (*type
 		}
 	}
 
-	return c.GetAccessTokenSkipCache(ctx, refreshToken)
+	v, err, _ := c.sf.Do(refreshToken, func() (interface{}, error) {
+		return c.GetAccessTokenSkipCache(ctx, refreshToken)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return v.(*types.Token), nil
 }
 
 // GetAccessTokenSkipCache ...
@@ -122,6 +132,7 @@ func (c *Client) GetAccessTokenSkipCache(ctx context.Context, refreshToken strin
 // GetGrantLessAccessToken token for a grantless operation is requested
 // scope should be one of: ['sellingpartnerapi::notifications', 'sellingpartnerapi::migration']
 func (c *Client) GetGrantLessAccessToken(ctx context.Context, scope types.Scope) (*types.Token, error) {
+
 	// get cache token
 	if c.cache != nil {
 		v, found, err := c.cache.GetToken(ctx, c.grantLessCacheKey(scope))
@@ -131,7 +142,16 @@ func (c *Client) GetGrantLessAccessToken(ctx context.Context, scope types.Scope)
 			return nil, fmt.Errorf("[token] get token cache error: %v", err)
 		}
 	}
-	return c.GetGrantLessAccessTokenSkipCache(ctx, scope)
+
+	v, err, _ := c.sf.Do(string(scope), func() (interface{}, error) {
+		return c.GetGrantLessAccessTokenSkipCache(ctx, scope)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return v.(*types.Token), nil
 }
 
 // GetGrantLessAccessTokenSkipCache ...

@@ -10,14 +10,16 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-resty/resty/v2"
+	"golang.org/x/sync/singleflight"
 	"net/http"
 )
 
 type Client struct {
-	debug     bool           //
-	cache     cache.Cache    //
-	signer    *signer.Signer //
-	userAgent string         //
+	debug     bool               //
+	cache     cache.Cache        //
+	signer    *signer.Signer     //
+	userAgent string             //
+	sf        singleflight.Group //
 }
 
 func NewClient(opts ...Option) *Client {
@@ -75,20 +77,18 @@ func (c *Client) GetRestrictedDataTokenSkipCache(ctx context.Context, endpoint s
 func (c *Client) GetRestrictedDataToken(ctx context.Context, sellerId string, endpoint string, awsRegion string, accessToken string, operations []*RestrictedOperation, isUniversal bool) (*string, error) {
 
 	var cacheKey string
+	if isUniversal {
+		cacheKey = fmt.Sprintf("amazon:rdt:%s", sellerId)
+	} else if len(operations) > 0 {
+		cacheKey = fmt.Sprintf("amazon:rdt:%s:%s", sellerId, operations[0].Path)
+	}
 
-	if c.cache != nil {
-		if isUniversal {
-			cacheKey = fmt.Sprintf("amazon:rdt:%s", sellerId)
-		} else if len(operations) > 0 {
-			cacheKey = fmt.Sprintf("amazon:rdt:%s:%s", sellerId, operations[0].Path)
-		}
-		if cacheKey != "" {
-			v, found, err := c.cache.GetToken(ctx, cacheKey)
-			if found {
-				return &v.AccessToken, nil
-			} else if err != nil {
-				return nil, errors.Errorf(http.StatusBadGateway, "GetRestrictedDataToken", "get token cache error: %v", err)
-			}
+	if c.cache != nil && cacheKey != "" {
+		v, found, err := c.cache.GetToken(ctx, cacheKey)
+		if found {
+			return &v.AccessToken, nil
+		} else if err != nil {
+			return nil, errors.Errorf(http.StatusBadGateway, "GetRestrictedDataToken", "get token cache error: %v", err)
 		}
 	}
 
@@ -99,22 +99,28 @@ func (c *Client) GetRestrictedDataToken(ctx context.Context, sellerId string, en
 		}
 	}
 
-	result, err := c.GetRestrictedDataTokenSkipCache(ctx, endpoint, awsRegion, accessToken, body)
+	v, err, _ := c.sf.Do(cacheKey, func() (interface{}, error) {
+		result, err := c.GetRestrictedDataTokenSkipCache(ctx, endpoint, awsRegion, accessToken, body)
+		if err != nil {
+			return nil, err
+		}
+		if c.cache != nil && cacheKey != "" {
+			token := types.Token{
+				AccessToken: result.RestrictedDataToken,
+				ExpiresIn:   result.ExpiresIn,
+				Expiry:      result.Expiry,
+			}
+			err = c.cache.SetToken(ctx, cacheKey, &token, token.ExpiryDuration())
+			if err != nil {
+				return nil, errors.Errorf(http.StatusBadGateway, "GetRestrictedDataToken", "set token cache error: %v", err)
+			}
+		}
+		return &result.RestrictedDataToken, nil
+	})
+
 	if err != nil {
 		return nil, err
 	}
 
-	if c.cache != nil && cacheKey != "" {
-		token := types.Token{
-			AccessToken: result.RestrictedDataToken,
-			ExpiresIn:   result.ExpiresIn,
-			Expiry:      result.Expiry,
-		}
-		err := c.cache.SetToken(ctx, cacheKey, &token, token.ExpiryDuration())
-		if err != nil {
-			return nil, errors.Errorf(http.StatusBadGateway, "GetRestrictedDataToken", "set token cache error: %v", err)
-		}
-	}
-
-	return &result.RestrictedDataToken, nil
+	return v.(*string), nil
 }
