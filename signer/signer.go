@@ -134,7 +134,7 @@ func (s *Signer) SignRequest(ctx context.Context, r *http.Request, accessToken, 
 		roleCredentials.SecretAccessKey,
 		roleCredentials.SessionToken),
 		func(s *v4.Signer) {
-			s.DisableURIPathEscaping = true
+			s.DisableURIPathEscaping = false
 		},
 	)
 
